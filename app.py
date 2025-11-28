@@ -7,7 +7,7 @@ os.environ["QT_QPA_PLATFORM"] = "offscreen"
 # Force unbuffered output
 sys.stdout.reconfigure(line_buffering=True)
 
-print("DEBUG: Starting app...", flush=True)
+print("DEBUG: Starting app v2.0 (optimized)...", flush=True)
 
 # Core imports
 import streamlit as st
