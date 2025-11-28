@@ -1,4 +1,8 @@
 import os
+
+# Disable GPU for MediaPipe/TensorFlow to prevent GL context errors on Cloud
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+os.environ["MEDIAPIPE_DISABLE_GPU"] = "1"
 import sys
 
 # Force Qt to run in offscreen mode to prevent segfaults in headless environments
