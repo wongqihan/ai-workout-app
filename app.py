@@ -260,13 +260,23 @@ class WorkoutProcessor:
             # Do pose detection
             if not skip_frame:
                 # Resize for much faster processing (keep aspect ratio)
-                process_width = 480
+                # Reduced to 320px for maximum memory/CPU efficiency on Cloud
+                process_width = 320
                 scale = process_width / w
                 process_height = int(h * scale)
                 img_small = cv2.resize(img, (process_width, process_height))
                 img_rgb = cv2.cvtColor(img_small, cv2.COLOR_BGR2RGB)
                 
                 results = self.pose.process(img_rgb)
+                
+                # Explicitly clear large objects to help memory
+                del img_small
+                del img_rgb
+                
+                # Periodic Garbage Collection (every 100 frames processed)
+                if self.frame_count % 300 == 0:
+                    import gc
+                    gc.collect()
                 
                 # Draw skeleton if detected
                 if results.pose_landmarks:
