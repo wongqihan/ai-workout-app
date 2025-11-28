@@ -12,6 +12,7 @@ print("DEBUG: Starting app...", flush=True)
 # Core imports
 import streamlit as st
 import numpy as np
+import cv2
 import av
 from streamlit_webrtc import webrtc_streamer, WebRtcMode, RTCConfiguration
 
@@ -120,7 +121,6 @@ def draw_text_with_background(img, text, position, font=cv2.FONT_HERSHEY_SIMPLEX
                             font_scale=1, text_color=(255, 255, 255), bg_color=(0, 0, 0), 
                             thickness=2, padding=10, alpha=0.6):
     """Draw text with a semi-transparent background."""
-    import cv2
     (text_width, text_height), baseline = cv2.getTextSize(text, font, font_scale, thickness)
     x, y = position
     
@@ -240,7 +240,6 @@ class WorkoutProcessor:
         return angle
 
     def recv(self, frame):
-        import cv2
         img = frame.to_ndarray(format="bgr24")
         
         if not self.running:
