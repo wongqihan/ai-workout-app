@@ -245,37 +245,56 @@ class WorkoutProcessor:
         return angle
 
     def recv(self, frame):
-        img = frame.to_ndarray(format="bgr24")
-        h, w, _ = img.shape
-        
-        # Frame skipping for performance - process every 2nd frame
-        self.frame_count += 1
-        skip_frame = (self.frame_count % 2 == 0)
-        
-        # Do pose detection (skip every other frame for performance)
+        # Initialize default values in case of error
         pose_detected = False
-        if not skip_frame:
-            img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            results = self.pose.process(img_rgb)
+        img = None
+        
+        try:
+            img = frame.to_ndarray(format="bgr24")
+            h, w, _ = img.shape
             
-            # Draw skeleton if detected
-            if results.pose_landmarks:
-                pose_detected = True
-                mp_drawing.draw_landmarks(
-                    img,
-                    results.pose_landmarks,
-                    mp_pose.POSE_CONNECTIONS,
-                    mp_drawing.DrawingSpec(color=(0,255,0), thickness=2, circle_radius=3),
-                    mp_drawing.DrawingSpec(color=(255,0,255), thickness=2, circle_radius=2)
-                )
+            # Frame skipping for performance - process every 3rd frame (was 2nd)
+            self.frame_count += 1
+            skip_frame = (self.frame_count % 3 != 0)
+            
+            # Do pose detection
+            if not skip_frame:
+                # Resize for much faster processing (keep aspect ratio)
+                process_width = 480
+                scale = process_width / w
+                process_height = int(h * scale)
+                img_small = cv2.resize(img, (process_width, process_height))
+                img_rgb = cv2.cvtColor(img_small, cv2.COLOR_BGR2RGB)
                 
-                # Only count reps if running
-                if self.running:
-                    landmarks = results.pose_landmarks.landmark
-                    if self.mode == "Squat":
-                        self.process_squat(landmarks)
-                    else:
-                        self.process_pushup(landmarks)
+                results = self.pose.process(img_rgb)
+                
+                # Draw skeleton if detected
+                if results.pose_landmarks:
+                    pose_detected = True
+                    
+                    # Draw on original image (requires scaling landmarks back up)
+                    # But mp_drawing.draw_landmarks works with normalized coordinates (0-1),
+                    # so we can pass the original image and the landmarks found on the small image!
+                    mp_drawing.draw_landmarks(
+                        img,
+                        results.pose_landmarks,
+                        mp_pose.POSE_CONNECTIONS,
+                        mp_drawing.DrawingSpec(color=(0,255,0), thickness=2, circle_radius=3),
+                        mp_drawing.DrawingSpec(color=(255,0,255), thickness=2, circle_radius=2)
+                    )
+                    
+                    # Only count reps if running
+                    if self.running:
+                        landmarks = results.pose_landmarks.landmark
+                        if self.mode == "Squat":
+                            self.process_squat(landmarks)
+                        else:
+                            self.process_pushup(landmarks)
+        except Exception as e:
+            print(f"Error in recv: {e}")
+            import traceback
+            traceback.print_exc()
+
         
         # Show status indicator (top left)
         status_text = "🟢 RUNNING" if self.running else "⏸️ PAUSED"
@@ -316,6 +335,9 @@ class WorkoutProcessor:
             draw_text_with_background(img, self.feedback, ('center', 'center'), 
                                     font_scale=1.2, bg_color=(0, 0, 255) if "!" in self.feedback else (0, 255, 0))
 
+        if img is None:
+            return frame
+            
         return av.VideoFrame.from_ndarray(img, format="bgr24")
 
 # --- Main App Layout ---
