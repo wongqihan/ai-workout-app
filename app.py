@@ -98,7 +98,7 @@ def init_mediapipe():
     mp_drawing = mp.solutions.drawing_utils
     mp_drawing_styles = mp.solutions.drawing_styles
 
-# Initialize MediaPipe immediately to download models during app startup
+# Initialize MediaPipe imports
 init_mediapipe()
 
 # --- Helper Functions ---
@@ -158,7 +158,7 @@ class WorkoutProcessor:
         # Optimized settings for cloud deployment
         self.pose = mp_pose.Pose(
             static_image_mode=False,
-            model_complexity=0,  # Lighter model (0=lite, 1=full, 2=heavy)
+            model_complexity=1,  # Using 1 (full) because it's bundled. 0 (lite) requires download which fails on cloud.
             min_detection_confidence=0.3,  # Lower for better performance
             min_tracking_confidence=0.3
         )
