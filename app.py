@@ -90,13 +90,16 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- MediaPipe Initialization (Lazy) ---
+# --- MediaPipe Initialization (Eager for cloud deployment) ---
 def init_mediapipe():
     global mp_pose, mp_drawing, mp_drawing_styles
     import mediapipe as mp
     mp_pose = mp.solutions.pose
     mp_drawing = mp.solutions.drawing_utils
     mp_drawing_styles = mp.solutions.drawing_styles
+
+# Initialize MediaPipe immediately to download models during app startup
+init_mediapipe()
 
 # --- Helper Functions ---
 
@@ -151,9 +154,7 @@ def draw_text_with_background(img, text, position, font=cv2.FONT_HERSHEY_SIMPLEX
 
 class WorkoutProcessor:
     def __init__(self):
-        if mp_pose is None:
-            init_mediapipe()
-        
+        # MediaPipe should already be initialized at module level
         # Optimized settings for cloud deployment
         self.pose = mp_pose.Pose(
             static_image_mode=False,
