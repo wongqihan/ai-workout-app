@@ -349,10 +349,11 @@ def main():
         # Using multiple free STUN/TURN servers for better connectivity
         def processor_factory():
             processor = WorkoutProcessor()
-            processor.mode = st.session_state.mode
-            processor.running = st.session_state.running
-            processor.counter = st.session_state.counter
-            processor.stage = st.session_state.stage
+            # Use .get() with defaults to handle async initialization
+            processor.mode = st.session_state.get('mode', "Squat")
+            processor.running = st.session_state.get('running', False)
+            processor.counter = st.session_state.get('counter', 0)
+            processor.stage = st.session_state.get('stage', "UP")
             return processor
         
         # Enhanced RTC Configuration with multiple ICE servers
