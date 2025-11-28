@@ -399,25 +399,16 @@ def main():
             st.info("Keep body aligned. Lower chest until elbows are < 90°.")
 
     with col_video:
-        # WebRTC Streamer with enhanced TURN server configuration
-        # Using multiple free STUN/TURN servers for better connectivity
-        def processor_factory():
-            processor = WorkoutProcessor()
-            # Use .get() with defaults to handle async initialization
-            processor.mode = st.session_state.get('mode', "Squat")
-            processor.running = st.session_state.get('running', False)
-            processor.counter = st.session_state.get('counter', 0)
-            processor.stage = st.session_state.get('stage', "UP")
-            return processor
-        
-        # Enhanced RTC Configuration with multiple ICE servers
+        # Enhanced RTC Configuration with multiple ICE servers (STUN + TURN)
         rtc_configuration = RTCConfiguration({
             "iceServers": [
                 {"urls": ["stun:stun.l.google.com:19302"]},
                 {"urls": ["stun:stun1.l.google.com:19302"]},
                 {"urls": ["stun:stun2.l.google.com:19302"]},
-                {"urls": ["stun:stun3.l.google.com:19302"]},
-                {"urls": ["stun:stun4.l.google.com:19302"]},
+                # OpenRelay free TURN server (often helps with connection issues)
+                {"urls": ["turn:openrelay.metered.ca:80"], "username": "openrelayproject", "credential": "openrelayproject"},
+                {"urls": ["turn:openrelay.metered.ca:443"], "username": "openrelayproject", "credential": "openrelayproject"},
+                {"urls": ["turn:openrelay.metered.ca:443?transport=tcp"], "username": "openrelayproject", "credential": "openrelayproject"},
             ]
         })
         
@@ -425,10 +416,17 @@ def main():
             key="workout-corrector",
             mode=WebRtcMode.SENDRECV,
             rtc_configuration=rtc_configuration,
-            video_processor_factory=processor_factory,
+            video_processor_factory=WorkoutProcessor,  # Pass class directly to avoid recreation
             media_stream_constraints={"video": True, "audio": False},
             async_processing=True,
         )
+        
+        # Dynamically update processor state without restarting stream
+        if webrtc_ctx.video_processor:
+            webrtc_ctx.video_processor.mode = st.session_state.get('mode', "Squat")
+            webrtc_ctx.video_processor.running = st.session_state.get('running', False)
+            webrtc_ctx.video_processor.counter = st.session_state.get('counter', 0)
+            webrtc_ctx.video_processor.stage = st.session_state.get('stage', "UP")
         
         # Display connection status
         if webrtc_ctx.state.playing:
