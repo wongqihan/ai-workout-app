@@ -9,7 +9,8 @@ sys.stdout.reconfigure(line_buffering=True)
 
 print("DEBUG: Starting app...", flush=True)
 
-# Imports moved inside main() or try-except blocks to prevent startup crashes
+# Core imports
+import streamlit as st
 import numpy as np
 import av
 from streamlit_webrtc import webrtc_streamer, WebRtcMode, RTCConfiguration
@@ -289,7 +290,6 @@ class WorkoutProcessor:
 # --- Main App Layout ---
 
 def main():
-    import streamlit as st
     # Initialize session state for controls and shared state
     if 'mode' not in st.session_state:
         st.session_state.mode = "Squat"
