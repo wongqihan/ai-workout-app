@@ -241,43 +241,65 @@ class WorkoutProcessor:
 
     def recv(self, frame):
         img = frame.to_ndarray(format="bgr24")
+        h, w, _ = img.shape
         
-        if not self.running:
-            # If paused, just return the image (maybe grayscale or dimmed)
-            return av.VideoFrame.from_ndarray(img, format="bgr24")
-
-        # 1. Pose Detection
+        # Always do pose detection for debugging
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         results = self.pose.process(img_rgb)
         
-        # 2. Draw Skeleton
+        # Draw skeleton if detected
+        pose_detected = False
         if results.pose_landmarks:
+            pose_detected = True
             mp_drawing.draw_landmarks(
                 img,
                 results.pose_landmarks,
                 mp_pose.POSE_CONNECTIONS,
-                mp_drawing.DrawingSpec(color=(245,117,66), thickness=2, circle_radius=2),
-                mp_drawing.DrawingSpec(color=(245,66,230), thickness=2, circle_radius=2)
+                mp_drawing.DrawingSpec(color=(0,255,0), thickness=3, circle_radius=4),
+                mp_drawing.DrawingSpec(color=(255,0,255), thickness=3, circle_radius=2)
             )
             
-            # 3. Process Exercise
-            landmarks = results.pose_landmarks.landmark
-            if self.mode == "Squat":
-                self.process_squat(landmarks)
-            else:
-                self.process_pushup(landmarks)
+            # Only count reps if running
+            if self.running:
+                landmarks = results.pose_landmarks.landmark
+                if self.mode == "Squat":
+                    self.process_squat(landmarks)
+                else:
+                    self.process_pushup(landmarks)
+        
+        # Show status indicator (top left)
+        status_text = "🟢 RUNNING" if self.running else "⏸️ PAUSED"
+        status_color = (0, 255, 0) if self.running else (255, 165, 0)
+        cv2.putText(img, status_text, (20, 40), 
+                   cv2.FONT_HERSHEY_BOLD, 1.0, status_color, 3, cv2.LINE_AA)
+        
+        # Show pose detection status
+        detection_text = "✓ Pose Detected" if pose_detected else "✗ No Pose - Stand in frame!"
+        detection_color = (0, 255, 0) if pose_detected else (0, 0, 255)
+        cv2.putText(img, detection_text, (20, 80), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.8, detection_color, 2, cv2.LINE_AA)
+        
+        # If paused, show instruction
+        if not self.running:
+            instruction = "Click 'Start Workout' to begin counting"
+            cv2.putText(img, instruction, (20, h - 30), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2, cv2.LINE_AA)
                 
         # 4. Draw UI Overlay (On Video)
         
-        # Rep Count Box (Bottom Right)
-        h, w, _ = img.shape
-        # Box dimensions
-        box_w, box_h = 150, 100
-        cv2.rectangle(img, (w - box_w - 20, h - box_h - 20), (w - 20, h - 20), (245, 117, 66), -1)
-        cv2.putText(img, str(self.counter), (w - box_w + 30, h - 40), 
-                   cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 4, cv2.LINE_AA)
-        cv2.putText(img, "REPS", (w - box_w + 40, h - 90), 
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 1, cv2.LINE_AA)
+        # Rep Count Box (Bottom Right) - LARGE and PROMINENT
+        # h, w, _ = img.shape # This line is now redundant as h, w are defined at the start
+        # Bigger box dimensions
+        box_w, box_h = 220, 150
+        # Bright green background with border
+        cv2.rectangle(img, (w - box_w - 20, h - box_h - 20), (w - 20, h - 20), (0, 255, 0), -1)
+        cv2.rectangle(img, (w - box_w - 20, h - box_h - 20), (w - 20, h - 20), (255, 255, 255), 3)
+        # HUGE counter number
+        cv2.putText(img, str(self.counter), (w - box_w + 40, h - 50), 
+                   cv2.FONT_HERSHEY_BOLD, 3.5, (0, 0, 0), 8, cv2.LINE_AA)
+        # Label
+        cv2.putText(img, "REPS", (w - box_w + 60, h - 120), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 0), 2, cv2.LINE_AA)
         
         # Feedback (Center, Semi-transparent)
         if self.feedback:
