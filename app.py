@@ -154,15 +154,19 @@ class WorkoutProcessor:
         if mp_pose is None:
             init_mediapipe()
         
+        # Optimized settings for cloud deployment
         self.pose = mp_pose.Pose(
-            min_detection_confidence=0.5,
-            min_tracking_confidence=0.5
+            static_image_mode=False,
+            model_complexity=0,  # Lighter model (0=lite, 1=full, 2=heavy)
+            min_detection_confidence=0.3,  # Lower for better performance
+            min_tracking_confidence=0.3
         )
         self.counter = 0
         self.stage = "UP"
         self.feedback = ""
         self.mode = "Squat"  # Default
         self.running = False
+        self.frame_count = 0  # For frame skipping
 
     def process_squat(self, landmarks):
         # Keypoints: Hip, Knee, Ankle (Right side)
@@ -243,29 +247,34 @@ class WorkoutProcessor:
         img = frame.to_ndarray(format="bgr24")
         h, w, _ = img.shape
         
-        # Always do pose detection for debugging
-        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        results = self.pose.process(img_rgb)
+        # Frame skipping for performance - process every 2nd frame
+        self.frame_count += 1
+        skip_frame = (self.frame_count % 2 == 0)
         
-        # Draw skeleton if detected
+        # Do pose detection (skip every other frame for performance)
         pose_detected = False
-        if results.pose_landmarks:
-            pose_detected = True
-            mp_drawing.draw_landmarks(
-                img,
-                results.pose_landmarks,
-                mp_pose.POSE_CONNECTIONS,
-                mp_drawing.DrawingSpec(color=(0,255,0), thickness=3, circle_radius=4),
-                mp_drawing.DrawingSpec(color=(255,0,255), thickness=3, circle_radius=2)
-            )
+        if not skip_frame:
+            img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            results = self.pose.process(img_rgb)
             
-            # Only count reps if running
-            if self.running:
-                landmarks = results.pose_landmarks.landmark
-                if self.mode == "Squat":
-                    self.process_squat(landmarks)
-                else:
-                    self.process_pushup(landmarks)
+            # Draw skeleton if detected
+            if results.pose_landmarks:
+                pose_detected = True
+                mp_drawing.draw_landmarks(
+                    img,
+                    results.pose_landmarks,
+                    mp_pose.POSE_CONNECTIONS,
+                    mp_drawing.DrawingSpec(color=(0,255,0), thickness=2, circle_radius=3),
+                    mp_drawing.DrawingSpec(color=(255,0,255), thickness=2, circle_radius=2)
+                )
+                
+                # Only count reps if running
+                if self.running:
+                    landmarks = results.pose_landmarks.landmark
+                    if self.mode == "Squat":
+                        self.process_squat(landmarks)
+                    else:
+                        self.process_pushup(landmarks)
         
         # Show status indicator (top left)
         status_text = "🟢 RUNNING" if self.running else "⏸️ PAUSED"
